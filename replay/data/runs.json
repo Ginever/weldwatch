@@ -1,0 +1,47 @@
+[
+ {
+  "id": "flat-tip",
+  "label": "120 A \u00b7 flat-tip electrode",
+  "dur": 15.726351726351727
+ },
+ {
+  "id": "pointed",
+  "label": "120 A \u00b7 pointed electrode",
+  "dur": 9.94023394023394
+ },
+ {
+  "id": "contaminated",
+  "label": "120 A \u00b7 contaminated electrode",
+  "dur": 10.558474558474558
+ },
+ {
+  "id": "backpurge-120",
+  "label": "120 A \u00b7 back-purge gas",
+  "dur": 10.857994857994859
+ },
+ {
+  "id": "misaligned",
+  "label": "120 A \u00b7 misaligned",
+  "dur": 11.059211059211059
+ },
+ {
+  "id": "first-recording",
+  "label": "120 A \u00b7 first recording",
+  "dur": 17.056529056529058
+ },
+ {
+  "id": "reversed",
+  "label": "120 A \u00b7 torch reversed (first test)",
+  "dur": 21.6998616998617
+ },
+ {
+  "id": "backpurge-160",
+  "label": "160 A \u00b7 back-purge gas",
+  "dur": 15.48980748980749
+ },
+ {
+  "id": "165a",
+  "label": "165 A \u00b7 10 L/min gas",
+  "dur": 21.001749001749
+ }
+]

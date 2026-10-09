@@ -1,0 +1,353 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WeldWatch Replay</title>
+<meta name="description" content="Replay recorded WeldWatch TIG welds: synced camera video with arc voltage and current at 333,333 samples per second, zoomable down to single samples.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+<style>
+:root{--navy:#0c0c48;--cyan:#0098c7;--teal:#2a9d8f;--red:#c63a2f;
+  --bg:#ffffff;--panel:#eef9fc;--ink:#1a1a1a;--muted:#5b6170;--line:#d6e6ec;--head:#0c0c48;
+  --plot:#ffffff;--grid:#e3edf1;--vcol:#c63a2f;--icol:#0c0c48;--cursor:#0098c7}
+@media (prefers-color-scheme:dark){:root{--bg:#0d1020;--panel:#151a33;--ink:#e7e9f2;--muted:#a3a9bd;--line:#262c4d;
+  --head:#cfe6ff;--plot:#0f1328;--grid:#222846;--vcol:#ff7a6b;--icol:#9fc2ff;--cursor:#4fd1ff}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Calibri,Roboto,sans-serif}
+a{color:var(--cyan)}
+.wrap{max-width:1180px;margin:0 auto;padding:0 16px}
+header{background:linear-gradient(135deg,#0c0c48,#1b2a7a 60%,#0098c7 130%);color:#fff;padding:14px 0}
+header .wrap{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+header h1{font-size:1.35rem;margin:0}
+header a{color:#cfefff;font-size:.95rem}
+.runs{display:flex;gap:6px;overflow-x:auto;padding:12px 0 6px;scrollbar-width:thin}
+.runs button{flex:none;font:inherit;font-size:.88rem;border:2px solid var(--line);background:var(--bg);color:var(--ink);
+  padding:5px 11px;border-radius:999px;cursor:pointer}
+.runs button[aria-pressed=true]{background:var(--navy);border-color:var(--navy);color:#fff}
+@media (prefers-color-scheme:dark){.runs button[aria-pressed=true]{background:var(--cyan);border-color:var(--cyan)}}
+.top{display:grid;gap:12px;grid-template-columns:1fr}
+@media(min-width:880px){.top{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}
+video{width:100%;border-radius:10px;background:#000;display:block;aspect-ratio:4/3}
+.card{background:var(--panel);border-radius:12px;padding:12px 14px}
+.card h2{font-size:1.1rem;margin:0 0 6px;color:var(--head)}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:2px 12px;font-size:.93rem}
+.kv b{color:var(--head)}
+.now{display:flex;gap:16px;font-variant-numeric:tabular-nums;font-size:1.15rem;margin:8px 0}
+.now span b{font-size:1.4rem}
+.controls{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:12px 0 8px}
+.controls button,.controls select{font:inherit;font-size:.88rem;border:1px solid var(--line);background:var(--panel);color:var(--ink);
+  padding:6px 10px;border-radius:8px;cursor:pointer}
+.controls button.primary{background:var(--cyan);border-color:var(--cyan);color:#fff;min-width:78px}
+.controls label{font-size:.88rem;color:var(--muted);display:flex;align-items:center;gap:4px}
+.plots{position:relative;touch-action:none;user-select:none;-webkit-user-select:none}
+canvas{display:block;width:100%;background:var(--plot);border:1px solid var(--line);border-radius:8px}
+#cv{height:190px} #ci{height:190px;margin-top:6px}
+.lower{display:grid;gap:12px;grid-template-columns:1fr;margin-top:12px}
+@media(min-width:880px){.lower{grid-template-columns:minmax(0,1fr) minmax(0,2fr)}}
+#cxy{height:260px;max-width:420px}
+.hint{font-size:.85rem;color:var(--muted)}
+.span{font-variant-numeric:tabular-nums;font-size:.88rem;color:var(--muted);margin-left:auto}
+details{margin:14px 0 30px} summary{cursor:pointer;color:var(--head);font-weight:600}
+.loading{position:absolute;right:10px;top:8px;font-size:.8rem;color:var(--muted)}
+</style>
+</head>
+<body>
+<header><div class="wrap"><h1>⚡ WeldWatch Replay</h1><a href="../">← back to the project</a></div></header>
+<main class="wrap">
+  <div class="runs" id="runs" role="group" aria-label="Choose a weld"></div>
+  <div class="top">
+    <video id="vid" playsinline muted preload="auto"></video>
+    <div class="card">
+      <h2 id="title">Loading…</h2>
+      <div class="now"><span>V <b id="nv">–</b></span><span>I <b id="ni">–</b></span><span>t <b id="nt">–</b></span></div>
+      <div class="kv" id="info"></div>
+      <p class="hint" style="margin-bottom:0">Drag to pan, scroll or pinch to zoom, tap to jump. Zoom far enough and you see
+        every individual sample, 3 µs apart. Camera 15 fps; electrical data 333,333 samples/s per channel.</p>
+    </div>
+  </div>
+  <div class="controls">
+    <button class="primary" id="play">▶ Play</button>
+    <select id="rate" aria-label="Playback speed"><option value="1">1×</option><option value="0.25">¼×</option><option value="0.1">0.1×</option></select>
+    <button data-span="all">Whole weld</button><button data-span="1">1 s</button><button data-span="0.05">50 ms</button>
+    <button data-span="0.001">1 ms</button><button data-span="0.0002">200 µs</button>
+    <label><input type="checkbox" id="follow" checked> follow playhead</label>
+    <span class="span" id="spanlbl"></span>
+  </div>
+  <div class="plots" id="plots">
+    <canvas id="cv"></canvas><canvas id="ci"></canvas><div class="loading" id="loading"></div>
+  </div>
+  <div class="lower">
+    <div><canvas id="cxy"></canvas><div class="hint" id="xyhint"></div></div>
+    <div class="card">
+      <h2>What am I looking at?</h2>
+      <p style="margin:.3em 0">The top trace is <b>arc voltage</b>, the bottom <b>arc current</b>. Zoomed out, each pixel shows the
+        min–max range of thousands of samples, so the band's thickness is the fast ripple. Zoom to 1 ms or less and the ripple
+        resolves, sample by sample, into the welder's 49.9 kHz inverter cycle.</p>
+      <p style="margin:.3em 0">The square panel plots <b>voltage against current</b> for the samples on screen. A healthy arc traces the
+        same loop every switching cycle; a damaged electrode smears it. Compare <i>flat-tip</i> with <i>contaminated</i>.</p>
+    </div>
+  </div>
+  <details><summary>About this data</summary>
+    <p class="hint">Recorded 11 September 2026 with WeldWatch on a TIG welder. Voltage = code × 20/4095 V. Current from a Hall clamp,
+      calibrated against the welder's setpoints: I = (code − zero)/6.574 A. Rare single-sample glitches from the voltage ADC's
+      receive interface (≈1 per run) are repaired by interpolation. Video and data both start at the moment recording begins;
+      alignment is at frame level (±1/15 s). Run labels follow the operator's file names.</p>
+  </details>
+</main>
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const vid = $("vid"), cv = $("cv"), ci = $("ci"), cxy = $("cxy");
+let runs = [], M = null, L2048 = null, L64 = null, l64p = null;
+const chunks = new Map(), pending = new Map();
+let firstLoad = true;
+let t0 = 0, t1 = 1, play = 0, playing = false, lastFrame = 0, gen = 0;
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+// ---------- data ----------
+const base = id => `data/${id}/`;
+async function bin(url) { const r = await fetch(url); if (!r.ok) throw new Error(url); return r.arrayBuffer(); }
+function getChunk(k) {
+  if (chunks.has(k)) return chunks.get(k);
+  if (!pending.has(k)) {
+    const g = gen;
+    pending.set(k, bin(base(M.id) + `raw/${String(k).padStart(4, "0")}.bin`).then(buf => {
+      if (g !== gen) return;
+      const b = new Uint8Array(buf), n = b.length / 3, v = new Uint16Array(n), i = new Uint16Array(n);
+      for (let j = 0, p = 0; j < n; j++, p += 3) { v[j] = b[p] | ((b[p + 1] & 15) << 8); i[j] = (b[p + 1] >> 4) | (b[p + 2] << 4); }
+      chunks.set(k, { v, i });
+      if (chunks.size > 60) chunks.delete(chunks.keys().next().value);
+      pending.delete(k); draw();
+    }).catch(() => pending.delete(k)));
+  }
+  return null;
+}
+const V = c => c * M.vScale, I = c => (c - M.iZero) * M.iScale;
+
+async function loadRun(id) {
+  gen++; chunks.clear(); pending.clear(); L64 = null; l64p = null;
+  const meta = await (await fetch(base(id) + "meta.json")).json();
+  M = meta; M.dur = M.n / M.fs;
+  L2048 = new Uint16Array(await bin(base(id) + "l2048.bin"));
+  vid.src = base(id) + "video.mp4"; vid.playbackRate = +$("rate").value;
+  vid.addEventListener("loadedmetadata", () => { vid.currentTime = Math.min(play, vid.duration - 0.01); }, { once: true });
+  const q = new URLSearchParams(location.search);
+  if (firstLoad && q.has("t")) { play = Math.min(+q.get("t"), M.dur); setSpan(q.has("span") ? +q.get("span") : 1, true); }
+  else { play = M.arc[0] + 1; setSpan(M.dur, true); }
+  firstLoad = false;
+  $("title").textContent = M.label;
+  const row = (k, v) => `<b>${k}</b><span>${v}</span>`;
+  $("info").innerHTML = row("Recording", `${M.dur.toFixed(1)} s (arc ${M.arc[0].toFixed(1)}–${M.arc[1].toFixed(1)} s)`) +
+    row("Mean arc", `${M.vMean.toFixed(2)} V · ${M.iMean.toFixed(1)} A`) +
+    (M.dvdi ? row("dV/dI", `${M.dvdi.toFixed(1)} mV/A`) : "") +
+    (M.coh ? row("V–I coherence", M.coh.toFixed(3)) : "");
+  draw();
+}
+function needL64() {
+  if (L64 || l64p) return;
+  const g = gen;
+  l64p = bin(base(M.id) + "l64.bin").then(b => { if (g === gen) { L64 = new Uint16Array(b); draw(); } });
+}
+
+// ---------- view ----------
+function setSpan(s, center) {
+  s = Math.min(Math.max(s, 40 / M.fs), M.dur);
+  const c = center ? (s >= M.dur ? M.dur / 2 : play) : (t0 + t1) / 2;
+  t0 = c - s / 2; t1 = c + s / 2; clampView(); draw();
+}
+function clampView() {
+  const s = t1 - t0;
+  if (t0 < 0) { t0 = 0; t1 = s; } if (t1 > M.dur) { t1 = M.dur; t0 = Math.max(0, M.dur - s); }
+}
+function fmtTick(t, step) {
+  if (step >= 1) return t.toFixed(0) + " s";
+  const d = Math.min(6, Math.max(0, Math.ceil(-Math.log10(step) - 1e-9)));
+  return t.toFixed(d) + " s";
+}
+function fmtT(s) { if (s === 0) return "0 s"; const a = Math.abs(s); return a >= 1 ? s.toFixed(2) + " s" : a >= 1e-3 ? (s * 1e3).toFixed(a >= 0.1 ? 0 : 1) + " ms" : (s * 1e6).toFixed(0) + " µs"; }
+
+// gather per-pixel [vmin,vmax,imin,imax] columns, or raw samples when zoomed in
+function gather(W) {
+  const spp = (t1 - t0) * M.fs / W;
+  if (spp >= 64) {
+    let lev = 2048, A = L2048;
+    if (spp < 2048) { needL64(); if (L64) { lev = 64; A = L64; } }
+    const nb = A.length / 4, cols = new Float32Array(W * 4).fill(NaN);
+    for (let x = 0; x < W; x++) {
+      const b0 = Math.floor((t0 + (t1 - t0) * x / W) * M.fs / lev), b1 = Math.max(b0 + 1, Math.floor((t0 + (t1 - t0) * (x + 1) / W) * M.fs / lev));
+      let a = 1e9, b = -1e9, c = 1e9, d = -1e9;
+      for (let k = Math.max(0, b0); k < Math.min(nb, b1); k++) {
+        const p = k * 4; if (A[p] < a) a = A[p]; if (A[p + 1] > b) b = A[p + 1]; if (A[p + 2] < c) c = A[p + 2]; if (A[p + 3] > d) d = A[p + 3];
+      }
+      if (b >= a) { cols[x * 4] = V(a); cols[x * 4 + 1] = V(b); cols[x * 4 + 2] = I(c); cols[x * 4 + 3] = I(d); }
+    }
+    return { mode: "cols", cols, lev };
+  }
+  const s0 = Math.max(0, Math.floor(t0 * M.fs) - 1), s1 = Math.min(M.n, Math.ceil(t1 * M.fs) + 1);
+  const n = s1 - s0, v = new Float32Array(n).fill(NaN), i = new Float32Array(n).fill(NaN);
+  let missing = 0;
+  for (let k = Math.floor(s0 / M.chunk); k <= Math.floor((s1 - 1) / M.chunk); k++) {
+    const c = getChunk(k); if (!c) { missing++; continue; }
+    const a = Math.max(s0, k * M.chunk), b = Math.min(s1, (k + 1) * M.chunk);
+    for (let s = a; s < b; s++) { v[s - s0] = V(c.v[s - k * M.chunk]); i[s - s0] = I(c.i[s - k * M.chunk]); }
+  }
+  return { mode: "raw", s0, v, i, missing, spp };
+}
+
+function niceTicks(lo, hi, n) {
+  const span = hi - lo, step0 = span / n, mag = Math.pow(10, Math.floor(Math.log10(step0)));
+  const step = [1, 2, 5, 10].map(m => m * mag).find(s => span / s <= n) || 10 * mag;
+  const out = []; for (let v = Math.ceil(lo / step) * step; v <= hi + 1e-12; v += step) out.push(v); return { out, step };
+}
+function setupCanvas(c) {
+  const dpr = window.devicePixelRatio || 1, r = c.getBoundingClientRect();
+  const w = Math.round(r.width * dpr), h = Math.round(r.height * dpr);
+  if (c.width !== w || c.height !== h) { c.width = w; c.height = h; }
+  const g = c.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0); return { g, W: r.width, H: r.height };
+}
+const PADL = 52, PADB = 20, PADT = 8, PADR = 8;
+
+function drawPanel(c, data, which, color, unit, label, showX) {
+  const { g, W, H } = setupCanvas(c);
+  const pw = W - PADL - PADR, ph = H - PADT - (showX ? PADB : 6);
+  g.clearRect(0, 0, W, H);
+  // y range from visible data
+  let lo = Infinity, hi = -Infinity;
+  if (data.mode === "cols") { for (let x = 0; x < data.cols.length / 4; x++) { const a = data.cols[x * 4 + which * 2], b = data.cols[x * 4 + which * 2 + 1]; if (a < lo) lo = a; if (b > hi) hi = b; } }
+  else { const arr = which ? data.i : data.v; for (const y of arr) { if (y < lo) lo = y; if (y > hi) hi = y; } }
+  if (!isFinite(lo)) { lo = 0; hi = 1; }
+  const pad = Math.max((hi - lo) * 0.08, which ? 0.5 : 0.05); lo -= pad; hi += pad;
+  const X = t => PADL + (t - t0) / (t1 - t0) * pw, Y = y => PADT + (hi - y) / (hi - lo) * ph;
+  g.font = "12px system-ui,Segoe UI,sans-serif"; g.fillStyle = css("--muted"); g.strokeStyle = css("--grid"); g.lineWidth = 1;
+  const yt = niceTicks(lo, hi, 4);
+  for (const y of yt.out) { g.beginPath(); g.moveTo(PADL, Y(y)); g.lineTo(PADL + pw, Y(y)); g.stroke();
+    g.textAlign = "right"; g.fillText((yt.step < 1 ? y.toFixed(yt.step < 0.1 ? 2 : 1) : y.toFixed(0)), PADL - 6, Y(y) + 4); }
+  const xt = niceTicks(t0, t1, Math.max(3, Math.floor(pw / 110)));
+  for (const t of xt.out) { g.beginPath(); g.moveTo(X(t), PADT); g.lineTo(X(t), PADT + ph); g.stroke();
+    if (showX) { g.textAlign = "center"; g.fillText(fmtTick(t, xt.step), X(t), H - 5); } }
+  g.save(); g.translate(13, PADT + ph / 2); g.rotate(-Math.PI / 2); g.textAlign = "center"; g.fillStyle = color; g.font = "600 12px system-ui,sans-serif";
+  g.fillText(`${label} [${unit}]`, 0, 0); g.restore();
+  // arc window shading
+  g.fillStyle = css("--panel"); g.globalAlpha = 0.55;
+  if (M.arc[0] > t0) g.fillRect(PADL, PADT, Math.max(0, X(M.arc[0]) - PADL), ph);
+  if (M.arc[1] < t1) g.fillRect(X(M.arc[1]), PADT, PADL + pw - X(M.arc[1]), ph);
+  g.globalAlpha = 1;
+  g.save(); g.beginPath(); g.rect(PADL, PADT, pw, ph); g.clip();
+  g.strokeStyle = color; g.fillStyle = color;
+  if (data.mode === "cols") {
+    g.lineWidth = 1; g.beginPath(); const scale = pw / (data.cols.length / 4);
+    for (let x = 0; x < data.cols.length / 4; x++) { const a = data.cols[x * 4 + which * 2], b = data.cols[x * 4 + which * 2 + 1];
+      if (a === a) { const px = PADL + (x + 0.5) * scale; g.moveTo(px, Y(b) - 0.5); g.lineTo(px, Y(a) + 0.5); } }
+    g.stroke();
+  } else {
+    const arr = which ? data.i : data.v; g.lineWidth = 1.4; g.beginPath(); let pen = false;
+    for (let k = 0; k < arr.length; k++) { const y = arr[k]; if (y !== y) { pen = false; continue; }
+      const px = X((data.s0 + k) / M.fs), py = Y(y); pen ? g.lineTo(px, py) : g.moveTo(px, py); pen = true; }
+    g.stroke();
+    if (data.spp < 0.35) for (let k = 0; k < arr.length; k++) { const y = arr[k]; if (y === y) { g.beginPath(); g.arc(X((data.s0 + k) / M.fs), Y(y), 2.6, 0, 7); g.fill(); } }
+  }
+  // playhead
+  if (play >= t0 && play <= t1) { g.strokeStyle = css("--cursor"); g.lineWidth = 2; g.beginPath(); g.moveTo(X(play), PADT); g.lineTo(X(play), PADT + ph); g.stroke(); }
+  g.restore();
+}
+
+function drawXY(data) {
+  const { g, W, H } = setupCanvas(cxy); g.clearRect(0, 0, W, H);
+  const span = t1 - t0;
+  if (data.mode !== "raw" || span > 0.2) { $("xyhint").textContent = "V–I loop: zoom to 200 ms or less to draw it."; g.fillStyle = css("--muted");
+    g.font = "13px system-ui,sans-serif"; g.textAlign = "center"; g.fillText("zoom in to ≤ 200 ms", W / 2, H / 2); return; }
+  $("xyhint").textContent = `V–I loop of the ${fmtT(span)} on screen (${data.v.length.toLocaleString()} samples).`;
+  let vl = Infinity, vh = -Infinity, il = Infinity, ih = -Infinity;
+  for (let k = 0; k < data.v.length; k++) { const v = data.v[k], i = data.i[k]; if (v !== v || i !== i) continue;
+    if (v < vl) vl = v; if (v > vh) vh = v; if (i < il) il = i; if (i > ih) ih = i; }
+  if (!isFinite(vl)) return;
+  const P = 42, pw = W - P - 8, ph = H - 8 - 26, pv = (vh - vl) * .06 + .01, pi = (ih - il) * .06 + .01;
+  vl -= pv; vh += pv; il -= pi; ih += pi;
+  const X = i => P + (i - il) / (ih - il) * pw, Y = v => 8 + (vh - v) / (vh - vl) * ph;
+  g.strokeStyle = css("--grid"); g.strokeRect(P, 8, pw, ph);
+  g.fillStyle = css("--muted"); g.font = "12px system-ui,sans-serif"; g.textAlign = "center";
+  g.fillText(`current [A]  ${il.toFixed(1)} … ${ih.toFixed(1)}`, P + pw / 2, H - 6);
+  g.save(); g.translate(12, 8 + ph / 2); g.rotate(-Math.PI / 2); g.fillText(`voltage [V]  ${vl.toFixed(2)} … ${vh.toFixed(2)}`, 0, 0); g.restore();
+  g.strokeStyle = css("--vcol"); g.globalAlpha = Math.max(0.15, Math.min(0.9, 3000 / data.v.length)); g.lineWidth = 1; g.beginPath();
+  let pen = false;
+  for (let k = 0; k < data.v.length; k++) { const v = data.v[k], i = data.i[k]; if (v !== v || i !== i) { pen = false; continue; }
+    pen ? g.lineTo(X(i), Y(v)) : g.moveTo(X(i), Y(v)); pen = true; }
+  g.stroke(); g.globalAlpha = 1;
+}
+
+let raf = 0;
+function draw() { if (!raf) raf = requestAnimationFrame(() => { raf = 0; render(); }); }
+function render() {
+  if (!M) return;
+  const W = Math.max(100, Math.round(cv.getBoundingClientRect().width - PADL - PADR));
+  const data = gather(W);
+  drawPanel(cv, data, 0, css("--vcol"), "V", "voltage", false);
+  drawPanel(ci, data, 1, css("--icol"), "A", "current", true);
+  drawXY(data);
+  $("loading").textContent = data.mode === "raw" && data.missing ? "loading raw samples…" : "";
+  $("spanlbl").textContent = `view ${fmtT(t1 - t0)} · ${data.mode === "raw" ? "raw samples" : "min–max of " + data.lev + " samples/bin"}`;
+  // readout at playhead
+  const s = Math.floor(play * M.fs), c = chunks.get(Math.floor(s / M.chunk));
+  if (c) { const j = s % M.chunk; $("nv").textContent = V(c.v[j]).toFixed(2) + " V"; $("ni").textContent = I(c.i[j]).toFixed(1) + " A"; }
+  else { const k = Math.min(L2048.length / 4 - 1, Math.floor(s / 2048)) * 4;
+    $("nv").textContent = "≈" + V((L2048[k] + L2048[k + 1]) / 2).toFixed(1) + " V"; $("ni").textContent = "≈" + I((L2048[k + 2] + L2048[k + 3]) / 2).toFixed(0) + " A";
+    if (t1 - t0 < 1) getChunk(Math.floor(s / M.chunk)); }
+  $("nt").textContent = play.toFixed(3) + " s";
+}
+
+// ---------- playback ----------
+function tick(ts) {
+  if (!playing) return;
+  const dt = lastFrame ? (ts - lastFrame) / 1000 : 0; lastFrame = ts;
+  const vd = isFinite(vid.duration) ? vid.duration : 0;
+  if (!vid.paused && vid.currentTime < vd - 0.05) play = vid.currentTime; else play += dt * +$("rate").value;
+  if (play >= M.dur) { play = M.dur; stop(); }
+  if ($("follow").checked) { const s = t1 - t0; if (play > t0 + 0.8 * s || play < t0) { t0 = play - 0.8 * s; t1 = t0 + s; clampView(); } }
+  draw(); requestAnimationFrame(tick);
+}
+function start() {
+  if (play >= M.dur - 0.01) play = 0;
+  playing = true; lastFrame = 0; $("play").textContent = "❚❚ Pause";
+  if (play < (vid.duration || 0)) { vid.currentTime = play; vid.playbackRate = +$("rate").value; vid.play().catch(() => {}); }
+  requestAnimationFrame(tick);
+}
+function stop() { playing = false; vid.pause(); $("play").textContent = "▶ Play"; }
+function seek(t) { play = Math.min(Math.max(t, 0), M.dur); if (vid.duration) vid.currentTime = Math.min(play, vid.duration - 0.01); draw(); }
+$("play").onclick = () => playing ? stop() : start();
+$("rate").onchange = () => { vid.playbackRate = +$("rate").value; };
+document.querySelectorAll("[data-span]").forEach(b => b.onclick = () => setSpan(b.dataset.span === "all" ? M.dur : +b.dataset.span, true));
+vid.addEventListener("seeked", () => { if (!playing) { play = vid.currentTime; draw(); } });
+
+// ---------- interaction ----------
+const plots = $("plots"), ptrs = new Map(); let dragStart = null, pinch = null, moved = false;
+const tAt = x => { const r = cv.getBoundingClientRect(); return t0 + (x - r.left - PADL) / (r.width - PADL - PADR) * (t1 - t0); };
+function zoomAt(tc, f) { const s = Math.min(Math.max((t1 - t0) * f, 40 / M.fs), M.dur); const a = (tc - t0) / (t1 - t0); t0 = tc - a * s; t1 = t0 + s; clampView(); draw(); }
+plots.addEventListener("wheel", e => { e.preventDefault(); $("follow").checked = false; zoomAt(tAt(e.clientX), Math.exp(e.deltaY * 0.0015)); }, { passive: false });
+plots.addEventListener("pointerdown", e => { plots.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, e.clientX); moved = false;
+  if (ptrs.size === 1) dragStart = { x: e.clientX, t0, t1 };
+  if (ptrs.size === 2) { const xs = [...ptrs.values()]; pinch = { d: Math.abs(xs[0] - xs[1]), c: tAt((xs[0] + xs[1]) / 2), s: t1 - t0 }; dragStart = null; } });
+plots.addEventListener("pointermove", e => { if (!ptrs.has(e.pointerId)) return; ptrs.set(e.pointerId, e.clientX);
+  if (pinch && ptrs.size === 2) { const xs = [...ptrs.values()], d = Math.max(10, Math.abs(xs[0] - xs[1]));
+    const s = Math.min(Math.max(pinch.s * pinch.d / d, 40 / M.fs), M.dur); t0 = pinch.c - s / 2; t1 = pinch.c + s / 2; clampView(); moved = true; $("follow").checked = false; draw(); }
+  else if (dragStart) { const r = cv.getBoundingClientRect(), dx = e.clientX - dragStart.x;
+    if (Math.abs(dx) > 4) moved = true;
+    const dt = dx / (r.width - PADL - PADR) * (dragStart.t1 - dragStart.t0); t0 = dragStart.t0 - dt; t1 = dragStart.t1 - dt; clampView();
+    if (moved) $("follow").checked = false; draw(); } });
+function up(e) { if (ptrs.size === 1 && !moved) seek(tAt(e.clientX)); ptrs.delete(e.pointerId); if (ptrs.size < 2) pinch = null; if (!ptrs.size) dragStart = null; }
+plots.addEventListener("pointerup", up); plots.addEventListener("pointercancel", e => { ptrs.delete(e.pointerId); pinch = null; dragStart = null; });
+window.addEventListener("resize", draw);
+window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", draw);
+
+// ---------- start ----------
+(async () => {
+  runs = await (await fetch("data/runs.json")).json();
+  const want = new URLSearchParams(location.search).get("run");
+  $("runs").innerHTML = runs.map(r => `<button data-id="${r.id}">${r.label}</button>`).join("");
+  const pick = id => { stop(); document.querySelectorAll("#runs button").forEach(b => b.setAttribute("aria-pressed", b.dataset.id === id));
+    if (!firstLoad) history.replaceState(null, "", "?run=" + id); loadRun(id); };
+  document.querySelectorAll("#runs button").forEach(b => b.onclick = () => pick(b.dataset.id));
+  pick(runs.some(r => r.id === want) ? want : runs[0].id);
+})();
+</script>
+</body>
+</html>
