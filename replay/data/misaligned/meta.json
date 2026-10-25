@@ -1,6 +1,6 @@
 {
  "id": "misaligned",
- "label": "120 A \u00b7 misaligned",
+ "label": "120 A \u00b7 misaligned torch (offset not measured)",
  "fs": 333333.0,
  "n": 3686400,
  "chunk": 65536,
@@ -13,7 +13,7 @@
   7.644355644355644
  ],
  "despiked": 1,
- "dvdi": 38.72964034812115,
+ "dvdi": 43.3,
  "coh": 0.6242843145437132,
  "vMean": 11.29829549318426,
  "iMean": 116.82917187805485

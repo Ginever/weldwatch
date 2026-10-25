@@ -6,7 +6,7 @@
 <title>WeldWatch: Real-Time Weld Monitoring</title>
 <meta name="description" content="WeldWatch: a clip-on monitor that records welding arc voltage and current at 333,333 samples per second. University of Auckland MECHENG 700 project.">
 <meta property="og:title" content="WeldWatch: Real-Time Weld Monitoring">
-<meta property="og:description" content="Clip-on arc voltage + current capture at 333 kSPS, streamed live over WiFi with zero lost data.">
+<meta property="og:description" content="Clip-on arc voltage and current capture at 333 kSPS per channel, streamed over WiFi to a Raspberry Pi 5 and tested beside a TIG welder.">
 <meta property="og:image" content="media/arc.jpg">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
 <style>
@@ -75,20 +75,20 @@ footer{padding:28px 0 40px;font-size:.92rem;color:var(--muted)}
 </style>
 </head>
 <body>
-
 <header class="hero">
   <div class="wrap">
     <div class="kicker">University of Auckland · MECHENG 700 · Project 92</div>
     <h1>WeldWatch</h1>
     <p class="lede">A clip-on monitor that records a welding arc's voltage and current
-      <b>333,333 times a second</b>, streams it live over WiFi with <b>zero lost data</b>,
-      and can tell a good electrode from a bad one by its electrical fingerprint.</p>
+      <b>333,333 times a second</b> and streams them over WiFi to a Raspberry Pi, without any change
+      to the welder. We built it, checked it on the bench, and used it beside a TIG welder to see
+      what the arc's electrical signals can and cannot tell you.</p>
     <p class="byline">Sujan Galpottage &amp; Zac Ginever · Supervisor: Dr Jan Polzer</p>
     <div class="stats">
       <div class="stat"><b>333 kSPS</b><span>per channel, voltage + current</span></div>
-      <div class="stat"><b>0</b><span>samples lost across 9 recorded welds</span></div>
-      <div class="stat"><b>35 kHz</b><span>measured bandwidth (35.2 designed)</span></div>
-      <div class="stat"><b>p = 0.0002</b><span>electrode conditions separated</span></div>
+      <div class="stat"><b>37</b><span>TIG recordings (2 lost data at the arc strike)</span></div>
+      <div class="stat"><b>≈37 kHz</b><span>voltage bandwidth (fitted; 35.2 kHz designed)</span></div>
+      <div class="stat"><b>0.51 V/mm</b><span>arc voltage rise per mm of arc length (10 welds)</span></div>
     </div>
   </div>
 </header>
@@ -96,7 +96,7 @@ footer{padding:28px 0 40px;font-size:.92rem;color:var(--muted)}
 <nav class="toc" aria-label="Sections">
   <div class="wrap">
     <a href="#watch">Watch a weld</a><a href="replay/">Replay data</a><a href="#why">Why</a><a href="#how">How it works</a>
-    <a href="#tested">Testing</a><a href="#findings">Findings</a><a href="#challenges">Challenges</a>
+    <a href="#tested">Testing</a><a href="#findings">Findings</a><a href="#limits">Not tested</a><a href="#challenges">Challenges</a>
     <a href="#next">What's next</a>
   </div>
 </nav>
@@ -106,7 +106,7 @@ footer{padding:28px 0 40px;font-size:.92rem;color:var(--muted)}
 <section id="watch">
   <div class="wrap">
     <h2>Watch a weld</h2>
-    <p>Each recording pairs the camera with the electrical data, captured at the same moment.
+    <p>Each clip shows the camera next to the electrical data recorded during the same weld.
       Pick an electrode condition. The traces show the last second of arc voltage and
       current (filtered to 3 kHz for display; the raw data is 100× finer in time).</p>
     <div class="tabs" role="group" aria-label="Choose a weld">
@@ -115,10 +115,12 @@ footer{padding:28px 0 40px;font-size:.92rem;color:var(--muted)}
       <button data-key="120A-contaminated-electrode" style="--c:#c63a2f" aria-pressed="false">Contaminated</button>
     </div>
     <video id="clip" controls playsinline muted loop preload="metadata"></video>
-    <p class="note">120 A TIG welds recorded 11 September 2026. Camera 15 fps; electrical data 333,333 samples/s per channel.</p>
+    <p class="note">120 A TIG welds recorded 11 September 2026, torch on a fixture, one run per electrode condition.
+      Camera 15 fps; electrical data 333,333 samples/s per channel. The video is recorded alongside the data, but its
+      timing against the data was never measured.</p>
     <a class="cta" href="replay/">
       <b>Replay any weld yourself →</b>
-      <span>All 9 recorded welds with synced video. Zoom from the whole weld down to individual samples 3 µs apart,
+      <span>All nine 11 September recordings with their video. Zoom from the whole weld down to individual samples 3 µs apart,
         and watch the voltage–current loop draw itself.</span>
     </a>
   </div>
@@ -130,16 +132,16 @@ footer{padding:28px 0 40px;font-size:.92rem;color:var(--muted)}
     <p>Many weld faults, like porosity, a contaminated tungsten or a worn electrode, can't be seen from the
       outside. They are usually found only when a part is <b>cut open, X-rayed or fails</b>. Meanwhile
       most workshop welders are <b>legacy machines with no data output</b> at all.</p>
-    <p>The arc itself carries a lot of information: its voltage and current fluctuate thousands of times a second
-      as the arc column, electrode and weld pool interact. Welding data loggers commonly sample around
-      10,000 times a second, which is too slow to see much of it.</p>
+    <p>The arc's voltage and current change as the arc, electrode and weld pool interact. Commercial weld monitors
+      usually sample around 10,000 times a second or less, or only work with their maker's power sources. We wanted
+      a low-cost retrofit that records both signals far faster, and to find out what that faster record adds.</p>
     <div class="card">
       <h3 style="margin-top:0">Our goals</h3>
       <ul class="tight">
         <li><b>Clip-on</b>: no modification to the welder</li>
-        <li>Capture arc voltage <b>and</b> current at <b>333,333 samples/s</b>, 33× a typical 10 kSPS welding DAQ</li>
-        <li>Stream live over WiFi with <b>zero lost data</b>, and record every weld gaplessly</li>
-        <li>Show the signals can tell <b>good from bad</b> electrode condition</li>
+        <li>Capture arc voltage <b>and</b> current at <b>333,333 samples/s</b>, 33× a typical 10 kSPS welding logger</li>
+        <li>Stream live over WiFi and aim to record every weld <b>without gaps</b></li>
+        <li>Test whether the signals respond to <b>deliberate process changes</b>: arc length, shielding gas and electrode condition</li>
       </ul>
     </div>
   </div>
@@ -154,54 +156,65 @@ footer{padding:28px 0 40px;font-size:.92rem;color:var(--muted)}
       </div>
       <div>
         <h3 style="margin-top:0">Sensing</h3>
-        <p><b>Voltage</b> is taken across the weld terminals through an isolated resistor divider.
-          <b>Current</b> is measured with a clamp-on Hall-effect sensor (±300 A), which never touches the circuit.
-          Each channel has a 6th-order anti-alias filter before a 12-bit ADC.</p>
-        <h3>Exact timing in hardware</h3>
-        <p>Both ADCs are clocked by the ESP32-S3's I2S audio peripheral and read by DMA, so every sample is
-          <b>exactly 3.000 µs</b> apart with no CPU in the timing path. Data can only ever be lost as whole blocks,
-          never as timing jitter.</p>
-        <h3>Zero-loss WiFi</h3>
-        <p>Samples go out in small UDP packets. The ESP keeps the last ~3 seconds in a retransmit buffer; the
-          Raspberry Pi watches sequence numbers and <b>re-requests anything that goes missing</b>. A retry is a warning
-          (WiFi getting busy); only data older than the buffer is a true loss.</p>
+        <p><b>Voltage</b> is taken across the welder terminals through a resistor divider. The divider and a reed relay sit
+          in a small housing at the welder end, <b>designed by Sujan Galpottage</b>, so only the reduced signal travels
+          along a shielded cable to the board. <b>Current</b> is measured with a clamp-on Hall-effect sensor (±300 A), which
+          never touches the welding circuit. Each channel has a 6th-order anti-alias filter before a 12-bit ADC.</p>
+        <h3>Timing in hardware</h3>
+        <p>Both ADCs start each conversion on the same clock edge, driven by the ESP32-S3's I2S peripheral and read by DMA,
+          so samples are <b>3 µs apart</b> with no CPU in the timing path (the clock measured 13.6 ppm fast).</p>
+        <h3>WiFi transport</h3>
+        <p>Samples go out in small UDP packets. The ESP keeps the last ~3 seconds in a resend buffer, and the
+          Raspberry Pi watches sequence numbers and <b>re-requests anything that goes missing</b>. This repaired ordinary
+          WiFi losses, but sequence numbers cannot see a stream that simply stops (see <a href="#challenges">Challenges</a>).</p>
         <h3>Protection</h3>
-        <p>Arc starts can put large voltage spikes on the weld leads. A TVS diode and clamp diodes absorb them, and the
-          weld side is <b>galvanically isolated</b> from the electronics. A surge also sets a <b>hardware latch</b>, so even
-          a microsecond-wide event can't be missed, and a 10 kV reed relay then <b>disconnects WeldWatch from the
-          welder</b>. Every failure (reset, lost WiFi, latched trip) leaves the relay open.</p>
+        <p>Arc starts can put large voltage spikes on the weld leads. A TVS diode and clamp diodes limit them, and the
+          weld side is <b>galvanically isolated</b> from the electronics by design (parts rated about 3 kV for 60 s; the
+          isolation was not tested). A surge comparator sets a latch that the ESP32 reads, and its firmware then opens the
+          reed relay to disconnect the voltage input. On the schematic the trip needs at least about 300 V; the threshold was
+          never measured, and in use the trip fired at every arc start for a reason we have not found.</p>
       </div>
     </div>
     <div class="grid2" style="margin-top:18px">
       <figure><a href="media/pcb.jpg"><img src="media/pcb.jpg" alt="Purple WeldWatch front-end PCB" loading="lazy"></a>
-        <figcaption>Our two-channel isolated front-end PCB.</figcaption></figure>
+        <figcaption>Our two-channel isolated front-end PCB (June 2026). The divider resistors on its tongue were later
+          moved into the welder-end housing.</figcaption></figure>
       <figure><a href="media/bench.jpg"><img src="media/bench.jpg" alt="Bench test setup with oscilloscope and monitor" loading="lazy"></a>
         <figcaption>Bench testing against a signal generator and oscilloscope.</figcaption></figure>
     </div>
     <p>The Raspberry Pi serves a <b>live web dashboard</b> (waveforms, spectra, link health) and records each weld,
-      with video from a USB endoscope camera saved alongside. Full circuit:
-      <a href="media/weldwatch-schematic.pdf">schematic (PDF, 4 sheets)</a>.</p>
+      with video from a USB endoscope camera saved alongside. The live current reading was never calibrated on the Pi,
+      so every current on this page was worked out afterwards from the raw data. Full circuit:
+      <a href="media/weldwatch-schematic.pdf">schematic (PDF, 4 sheets, revised 20 Oct 2026)</a>; the divider housing
+      and shielded cables are not drawn on it.</p>
   </div>
 </section>
 
 <section id="tested">
   <div class="wrap">
     <h2>Does it measure what we designed?</h2>
-    <p>Before any welding we tested the system against a signal generator, then checked it on real welds. Tap any plot to open it full size.</p>
-    <figure class="lightbg"><a href="media/bode.png"><img src="media/bode.png" alt="Frequency response: measured points match the designed filter, flat to 20 kHz, -3 dB at 35 kHz" loading="lazy"></a>
-      <figcaption><b>Frequency response</b> (voltage channel). Measured points sit on the designed filter curve:
-        flat to within ±0.4 % up to 20 kHz, −3 dB at 35 kHz, and −77 dB at 200 kHz so out-of-band signals can't fold back in.</figcaption></figure>
+    <p>Before any welding we tested the system against a signal generator (23 July and 4 August 2026). Tap any plot to
+      open it full size.</p>
+    <figure class="lightbg"><a href="media/bode.png"><img src="media/bode.png" alt="Measured and modelled frequency response: measured points follow the 499 ohm filter model; no test tones between 32.9 and 54.5 kHz" loading="lazy"></a>
+      <figcaption><b>Frequency response.</b> Measured points follow the designed filter. The voltage channel was flat to
+        within ±0.39 % from 10 Hz to 19.8 kHz (4 August). No test tone fell between 32.9 and 54.5 kHz (shaded), so the
+        −3 dB point is inferred: a model fit gives 36.7–37.3 kHz against 35.2 kHz designed, within the filter parts'
+        tolerance. At 150 kHz the signal was 58–60 dB down. The current electronics were driven by the generator in place
+        of the Hall sensor, so only their shape is shown.</figcaption></figure>
     <figure class="lightbg"><a href="media/step.png"><img src="media/step.png" alt="Step response: 333 kSPS trace resolves a 10.6 microsecond edge that falls between two 10 kSPS samples" loading="lazy"></a>
-      <figcaption><b>Why sample so fast?</b> A real 10.6 µs voltage step: WeldWatch resolves it, while a 10 kSPS logger
-        sees nothing until up to 100 µs later and misses the shape entirely.</figcaption></figure>
+      <figcaption><b>Why sample so fast?</b> A 10.6 µs voltage step from the generator: WeldWatch puts about 3.5 samples on
+        the edge, while a 10 kSPS logger gets 0.11 and cannot resolve its shape.</figcaption></figure>
     <div class="scroll"><table>
       <tr><th>Measurement</th><th>Result</th></tr>
-      <tr><td>Bandwidth (−3 dB)</td><td>35 kHz measured vs 35.2 kHz designed</td></tr>
-      <tr><td>Step rise time</td><td>10.6 µs measured vs 11.1 µs predicted</td></tr>
-      <tr><td>Sample clock</td><td>+13.6 ppm, &lt; 0.4° phase wander over 30 s</td></tr>
-      <tr><td>Current noise, in the welding bay</td><td>90–140 mA rms (10.4–11 effective bits)</td></tr>
-      <tr><td>Voltage noise, in the welding bay</td><td>≤ 29 mV rms (welder on, arc off; includes the welder's own output noise)</td></tr>
-      <tr><td>Data integrity</td><td>9 welds recorded, every file complete with no gaps</td></tr>
+      <tr><td>Voltage bandwidth (−3 dB)</td><td>≈37 kHz (fitted) vs 35.2 kHz designed</td></tr>
+      <tr><td>Voltage scale</td><td>Within 0.53 % of the generator (itself ±1 %)</td></tr>
+      <tr><td>Step rise time</td><td>10.6 µs measured vs 10.7 µs modelled</td></tr>
+      <tr><td>Sample clock</td><td>+13.6 ppm, 0.69° peak-to-peak phase residual</td></tr>
+      <tr><td>Effective resolution</td><td>8–9 bits on large signals (includes generator noise)</td></tr>
+      <tr><td>Current channel</td><td>Electronics tracked the voltage channel within 0.5 dB to 90 kHz; the Hall sensor itself
+        (25 kHz on its datasheet) was never swept. Its zero sat 174 mV off, removed in software</td></tr>
+      <tr><td>Data integrity</td><td>37 TIG recordings, loss counters all zero, yet two (13 October welds 13 and 14) lost
+        data at the arc strike</td></tr>
     </table></div>
   </div>
 </section>
@@ -209,54 +222,106 @@ footer{padding:28px 0 40px;font-size:.92rem;color:var(--muted)}
 <section id="findings">
   <div class="wrap">
     <h2>What the arc tells us</h2>
-    <p>We welded at 120 A with the tungsten electrode deliberately prepared four ways: <b>sanded flat</b>, <b>new and
-      pointed</b>, <b>contaminated</b> (dipped into the weld pool), and with <b>back-purge</b> shielding gas.
-      Each arc was split into 0.5 s segments and analysed.</p>
-    <figure class="lightbg"><a href="media/vi-bars.png"><img src="media/vi-bars.png" alt="Dynamic conductance and V-I coherence per electrode condition with 95% confidence intervals" loading="lazy"></a>
-      <figcaption><b>Key result.</b> Two features separate the conditions far beyond their run-to-run scatter
-        (permutation test p = 0.0002): <b>dV/dI</b>, how much the voltage moves per amp of current change, and
-        <b>V–I coherence</b>, how tightly voltage tracks current. The flat tip gives the most stable, coherent arc;
-        damaged tips lose coherence. Error bars are bootstrap 95 % confidence intervals.</figcaption></figure>
-    <figure class="lightbg"><a href="media/vi-locus.png"><img src="media/vi-locus.png" alt="Voltage-current loci: flat tip traces a repeatable loop, contaminated tip a filled smear" loading="lazy"></a>
-      <figcaption><b>Seen at full speed.</b> 50 ms of raw 333 kSPS data plotted as voltage against current. The flat tip
-        traces the same loop every switching cycle; the contaminated tip fills the same area with no repeatable path.
-        This structure is invisible at 10 kSPS.</figcaption></figure>
-    <figure class="lightbg"><a href="media/psd-all.png"><img src="media/psd-all.png" alt="Power spectra of all welds showing inverter lines at 25 and 50 kHz" loading="lazy"></a>
-      <figcaption><b>The welder's inverter</b> switches at 49.9 kHz (with a 25 kHz sub-harmonic), clearly visible in every
-        weld. A 10 kSPS system cannot see these frequencies at all.</figcaption></figure>
+    <p>All TIG welding was done with one Miller Dynasty 400 welder in the university's Technical Services workshop.</p>
+    <ul class="tight">
+      <li><b>10 August:</b> a MIG (GMAW) run on a different welder, as a development step that proved the system records end
+        to end. It was not analysed.</li>
+      <li><b>11 August:</b> TIG welds hand-held by the workshop welder on 3 mm stainless plates, used to check the current
+        calibration.</li>
+      <li><b>11 September:</b> torch on a fixture at 120 A, one run each with the tungsten sanded flat, new and pointed,
+        contaminated by contact with the weld pool, with back-purge gas, and one run with the torch deliberately misaligned (offset not
+        measured).</li>
+      <li><b>13 October:</b> 21 numbered welds at 120 A on stainless pipe and a spiral-welded tube, varying arc length, shielding gas and tungsten
+        condition, with repeated welds at the same settings to measure the normal scatter.</li>
+    </ul>
+
+    <h3>Arc length: the clearest result</h3>
+    <figure class="lightbg"><a href="media/arclength.png"><img src="media/arclength.png" alt="Mean arc voltage rises linearly with set arc length at 0.51 V/mm; dV/dI shows no trend; coherence falls with arc length" loading="lazy"></a>
+      <figcaption><b>Set arc length, 13 October.</b> (a) Mean arc voltage rose by 0.51 V per mm (95 % confidence interval
+        0.45–0.57, 10 welds). The slope sits within the range read from published data for stainless steel in argon, and
+        below the 0.6 V/mm reported on a copper anode. Arc length was
+        confounded with the workpiece and the order of welding, and the two longest-arc welds each had an event during the
+        weld (open markers). Sujan's separate analysis of the same recordings found 0.507 V/mm. (b) dV/dI did not change with
+        arc length. (c) Coherence fell, but it follows the voltage.</figcaption></figure>
+
+    <h3>Shielding gas and tungsten condition</h3>
+    <p>Only the complete loss of gas and the contaminated tungsten clearly changed the arc. Weld 20, struck with no gas at
+      all, ran at 15.3 V with very noisy voltage, against about 11.5 V for good welds, and its bead is a short oxidised spot. Reduced flow
+      (weld 17) and the gas shut off at the bottle (weld 18, and weld 19 held without gas for longer) kept a normal voltage;
+      gas left in the line may have kept them shielded. Their slightly lower dV/dI is only a lead, as they were single welds
+      made one after another. The contaminated tungsten (weld 21) stood out in every voltage feature, but it was one weld,
+      made last, with an unexplained 3.6 A drop in current.</p>
+    <figure><a href="media/beads.jpg"><img src="media/beads.jpg" alt="Bead face and root photos of welds 16 to 21: control, 3 L/min, gas shut, gas shut off held longer, no gas, contaminated tungsten" loading="lazy"></a>
+      <figcaption><b>Welds 16 to 21</b>, face (top) and root (bottom), photographed 19 October. The matching of beads to weld
+        numbers is proposed, not confirmed, and the welds were not sectioned.</figcaption></figure>
+
+    <h3>Voltage–current features did not hold up</h3>
+    <figure class="lightbg"><a href="media/vi-bars.png"><img src="media/vi-bars.png" alt="dV/dI and V-I coherence per weld: 13 October good welds with prediction interval, gas and tungsten welds, and 11 September runs" loading="lazy"></a>
+      <figcaption><b>dV/dI and V–I coherence per weld.</b> dV/dI is how much the voltage moves per amp of current change;
+        coherence is how closely voltage follows current. On 11 September dV/dI was 43.5–45.4 mV/A for the flat, pointed and
+        contaminated tungsten and 38.5 mV/A with back-purge (misaligned torch in grey). With one run per condition this only
+        shows those runs differed. On 13 October the September difference did not repeat under the report's replication test, and
+        coherence, which did, mostly tracks the arc voltage. Shaded: range expected for a new good weld.</figcaption></figure>
+    <figure class="lightbg"><a href="media/psd-all.png"><img src="media/psd-all.png" alt="Power spectra of the nine 11 September recordings showing inverter lines near 25 and 50 kHz" loading="lazy"></a>
+      <figcaption><b>The welder's inverter</b> switches near 49.9 kHz (with a 25 kHz sub-harmonic), clearly visible in every
+        11 September recording (rec_110756 is the misaligned-torch run). Its frequency moved with load and shifted 45 Hz
+        between sessions. Above a 10 kSPS logger's range the record was mostly this switching, and none of the process
+        results needed the high sample rate; the arc start, where fast sampling should matter most, was not studied.</figcaption></figure>
     <div class="card">
-      <h3 style="margin-top:0">The camera agrees</h3>
-      <p>Arc brightness flickers <b>4–7 %</b> for the steady flat-tip arc but <b>19–22 %</b> for the pointed and
-        contaminated electrodes, the same ranking the electrical coherence gives. Two independent sensors,
-        one story.</p>
-      <p class="note">Honest caveat: one weld per condition with a hand-held torch. The differences are larger than the
-        scatter within each weld, but a robot-held torch and repeated welds are needed before this becomes a
-        classifier.</p>
+      <h3 style="margin-top:0">What it adds up to</h3>
+      <p>Everything we found showed in the <b>arc voltage</b>: the arc-length effect and the two clearly abnormal welds. A
+        voltage-led monitor, with reference levels taken from good welds on the same machine and day, would have caught the
+        same things. These are results from one welder, one operator and mostly one weld per condition, so they hold for
+        this setup, not in general.</p>
     </div>
+  </div>
+</section>
+
+<section id="limits">
+  <div class="wrap">
+    <h2>What we did not test</h2>
+    <div class="card"><ul class="tight">
+      <li>Fault detection on a production legacy welder (the planned Spiraweld trials did not happen)</li>
+      <li>The arc ignition transient, which was never scoped, and the surge-trip threshold</li>
+      <li>The isolation barrier and the Hall sensor's own bandwidth</li>
+      <li>Current accuracy: it was only fitted to the welder's setpoint, with no reference meter</li>
+      <li>The timing of the video against the data</li>
+      <li>The fixes for silent data loss, which have not yet been used on a weld</li>
+    </ul></div>
   </div>
 </section>
 
 <section id="challenges">
   <div class="wrap">
-    <h2>Challenges we solved</h2>
-    <div class="story"><h3><span class="tag">Problem</span>WiFi stalled every ~60 s</h3>
-      <p>Bursts of ~2,000 retransmits arrived like clockwork. <span class="tag fix">Fix</span>Traced to power-saving on the
-        Raspberry Pi's WiFi radio while acting as a hotspot. Disabled and made permanent.</p></div>
+    <h2>Challenges along the way</h2>
+    <div class="story"><h3><span class="tag">Problem</span>WiFi stalled about once a minute</h3>
+      <p>Bursts of around 2,000 resent packets arrived like clockwork. <span class="tag fix">Fix</span>Traced to WiFi power
+        saving on the Raspberry Pi's hotspot radio. Power saving is now off at both ends.</p></div>
     <div class="story"><h3><span class="tag">Problem</span>Duplicated data with no error</h3>
-      <p>During retransmit storms, late duplicate packets looked like the ESP32 had rebooted, so the receiver re-synced
+      <p>During resend storms, late duplicate packets looked like the ESP32 had rebooted, so the receiver re-synced
         and recorded old data twice, and no loss counter noticed. <span class="tag fix">Fix</span>A window check that
         ignores late duplicates near the current position.</p></div>
-    <div class="story"><h3><span class="tag">Problem</span>A "4 kHz bandwidth fault"</h3>
-      <p>Our first sweep showed bandwidth 25× worse than designed, and a circuit simulation even "confirmed" a plausible
-        cause. <span class="tag fix">Fix</span>The real culprit was the signal generator briefly switching off every time
-        its frequency changed. Fixing the test method revealed the circuit met its design within 1 %.</p></div>
+    <div class="story"><h3><span class="tag">Problem</span>Recordings that looked complete</h3>
+      <p>On 13 October two welds lost data at the arc strike (one stopped 7 ms after it, the other lost its first 6.4 s),
+        yet every loss counter read zero. We only found it by comparing the data and video lengths.
+        <span class="tag fix">Fix</span>A wall-clock check on each recording and an automatic ESP32 restart that reports why
+        it reset. These have only been tested off the welder.</p></div>
+    <div class="story"><h3><span class="tag">Problem</span>A 4 kHz bandwidth limit</h3>
+      <p>Our first frequency sweep rolled off at 4.3 kHz, far below the design, and we first blamed the signal generator.
+        <span class="tag fix">Fix</span>The real cause was the voltage cable's shield, which was tied to ground. Driving the shield
+        from the buffer amplifier instead removed the roll-off, and the channel then matched its design (−3 dB ≈37 kHz, fitted).</p></div>
     <div class="story"><h3><span class="tag">Problem</span>Current read 93 A too high</h3>
-      <p><span class="tag fix">Fix</span>Re-calibrated against the welder's own setpoints across six recordings; the
-        corrected calibration fits to within 0.2 A.</p></div>
-    <div class="story"><h3><span class="tag">Problem</span>Measuring the noise floor</h3>
-      <p>Our first noise test left the voltage input at 0 V, the bottom of the ADC range, which clips half the noise and
-        makes the result meaningless. <span class="tag fix">Fix</span>We re-measured from the quiet seconds after each
-        weld, when the welder is on with no arc and the voltage sits mid-range.</p></div>
+      <p>The shipped scaling assumed the Hall sensor's zero sat mid-range; on the bench it sat 174 mV high.
+        <span class="tag fix">Fix</span>Currents were recalculated afterwards against the welder's own setpoints, fitting to within
+        about 0.2 A. With no reference meter this shows consistency with the welder, not accuracy.</p></div>
+    <div class="story"><h3><span class="tag">Problem</span>Single-sample glitches</h3>
+      <p>Occasional samples were read one bit early, doubling their value. In four welds they raised the current spectrum by
+        up to about 15 dB, which had been read as sensor pick-up. <span class="tag fix">Fix</span>A detector scanned all
+        37 recordings and each glitch was repaired from its neighbours before analysis.</p></div>
+    <div class="story"><h3><span class="tag">Problem</span>Two analyses that disagreed</h3>
+      <p>Our two independent analysis pipelines gave very different September dV/dI results. <span class="tag fix">Fix</span>Re-running
+        both side by side on the raw data showed each had a filter edge effect at the segment boundaries. Filtering the whole
+        recording before cutting it into segments fixed both, and the corrected values are the ones shown here.</p></div>
   </div>
 </section>
 
@@ -265,14 +330,15 @@ footer{padding:28px 0 40px;font-size:.92rem;color:var(--muted)}
     <h2>What's next</h2>
     <div class="grid2">
       <div class="card"><h3 style="margin-top:0">Development</h3><ul class="tight">
-        <li><b>Real-time alerts</b> on the dashboard during the weld</li>
-        <li><b>Closed loop</b>: warn the operator, or signal the welder to stop, when the arc goes bad</li>
-        <li><b>Robot-held torch</b> and repeated welds to train a classifier, using video as labels</li>
-        <li>Calibrate the current channel's frequency response with a programmable current source</li>
+        <li>Try a <b>voltage-led monitor</b>, with references set from good welds each session, on Spiraweld's welder</li>
+        <li><b>Repeat welds</b> for each condition, in random order, so a condition can be told apart from a single run</li>
+        <li>Calibrate current against a <b>reference meter</b>, and sweep the Hall sensor with a programmable current source</li>
+        <li>Test the surge trip with a slow voltage ramp, and either study the arc-start transients or trade sample rate for robustness</li>
+        <li>Use the new data-loss checks on real welds</li>
       </ul></div>
-      <div class="card"><h3 style="margin-top:0">Applications</h3><ul class="tight">
+      <div class="card"><h3 style="margin-top:0">Possible applications</h3><ul class="tight">
         <li><b>Low-cost retrofit</b> giving legacy welders QA records and traceability</li>
-        <li>Operator training with live arc-stability feedback</li>
+        <li>Operator training with live arc-voltage feedback</li>
         <li>MIG transfer-mode detection, spot welding, wire-arc additive manufacturing</li>
         <li>Any fast two-channel logging: motor drives, power quality, battery testing</li>
       </ul></div>

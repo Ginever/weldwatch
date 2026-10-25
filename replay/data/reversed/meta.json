@@ -1,6 +1,6 @@
 {
  "id": "reversed",
- "label": "120 A \u00b7 torch reversed (first test)",
+ "label": "120 A \u00b7 first test (pool left the camera view)",
  "fs": 333333.0,
  "n": 7233280,
  "chunk": 65536,
@@ -13,7 +13,7 @@
   8.702297702297702
  ],
  "despiked": 5,
- "dvdi": 43.404219600940586,
+ "dvdi": 44.6,
  "coh": 0.5448944251861356,
  "vMean": 12.390500506972653,
  "iMean": 120.67519298954093

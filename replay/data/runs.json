@@ -21,18 +21,18 @@
  },
  {
   "id": "misaligned",
-  "label": "120 A \u00b7 misaligned",
+  "label": "120 A \u00b7 misaligned torch (offset not measured)",
   "dur": 11.059211059211059
  },
  {
-  "id": "first-recording",
-  "label": "120 A \u00b7 first recording",
-  "dur": 17.056529056529058
+  "id": "reversed",
+  "label": "120 A \u00b7 first test (pool left the camera view)",
+  "dur": 21.6998616998617
  },
  {
-  "id": "reversed",
-  "label": "120 A \u00b7 torch reversed (first test)",
-  "dur": 21.6998616998617
+  "id": "first-recording",
+  "label": "Second test, rotation reversed",
+  "dur": 17.056529056529058
  },
  {
   "id": "backpurge-160",
@@ -41,7 +41,7 @@
  },
  {
   "id": "165a",
-  "label": "165 A \u00b7 10 L/min gas",
+  "label": "165 A \u00b7 gas raised to 10 L/min",
   "dur": 21.001749001749
  }
 ]

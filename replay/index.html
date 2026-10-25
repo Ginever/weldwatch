@@ -82,16 +82,22 @@ details{margin:14px 0 30px} summary{cursor:pointer;color:var(--head);font-weight
       <h2>What am I looking at?</h2>
       <p style="margin:.3em 0">The top trace is <b>arc voltage</b>, the bottom <b>arc current</b>. Zoomed out, each pixel shows the
         min–max range of thousands of samples, so the band's thickness is the fast ripple. Zoom to 1 ms or less and the ripple
-        resolves, sample by sample, into the welder's 49.9 kHz inverter cycle.</p>
-      <p style="margin:.3em 0">The square panel plots <b>voltage against current</b> for the samples on screen. A healthy arc traces the
-        same loop every switching cycle; a damaged electrode smears it. Compare <i>flat-tip</i> with <i>contaminated</i>.</p>
+        resolves, sample by sample, into the welder's inverter switching at about 50 kHz.</p>
+      <p style="margin:.3em 0">The square panel plots <b>voltage against current</b> for the samples on screen, so you can see how
+        the two move together within each switching cycle. Its shape was not tested as a sign of electrode condition.</p>
+      <p style="margin:.3em 0">The <b>dV/dI</b> and <b>coherence</b> values in the card are corrected values (the whole recording
+        filtered before cutting it into 0.5 s segments). With one run per condition they describe that run only, and on
+        13 October neither proved a reliable marker of a condition.</p>
     </div>
   </div>
   <details><summary>About this data</summary>
-    <p class="hint">Recorded 11 September 2026 with WeldWatch on a TIG welder. Voltage = code × 20/4095 V. Current from a Hall clamp,
-      calibrated against the welder's setpoints: I = (code − zero)/6.574 A. Rare single-sample glitches from the voltage ADC's
-      receive interface (≈1 per run) are repaired by interpolation. Video and data both start at the moment recording begins;
-      alignment is at frame level (±1/15 s). Run labels follow the operator's file names.</p>
+    <p class="hint">Recorded 11 September 2026 with WeldWatch beside a Miller Dynasty 400 TIG welder, torch on a fixture,
+      one run per condition. Voltage = code × 20/4095 V. Current from a Hall clamp, fitted to the welder's setpoints (no
+      reference meter): I = (code − zero)/6.574 A, worked out afterwards from the raw codes, not the Pi's live reading.
+      Occasional single-sample glitches (a few per run) are repaired by interpolation. Video and data both start when
+      recording begins, but their relative timing was never measured. The torch offset in the misaligned run was not
+      measured. Run labels follow the run log; two file names were swapped after the session, and the labels here follow
+      the log (a first test, then a repeat with the rotation reversed).</p>
   </details>
 </main>
 <script>
@@ -139,7 +145,7 @@ async function loadRun(id) {
   const row = (k, v) => `<b>${k}</b><span>${v}</span>`;
   $("info").innerHTML = row("Recording", `${M.dur.toFixed(1)} s (arc ${M.arc[0].toFixed(1)}–${M.arc[1].toFixed(1)} s)`) +
     row("Mean arc", `${M.vMean.toFixed(2)} V · ${M.iMean.toFixed(1)} A`) +
-    (M.dvdi ? row("dV/dI", `${M.dvdi.toFixed(1)} mV/A`) : "") +
+    (M.dvdi ? row("dV/dI (corrected)", `${M.dvdi.toFixed(1)} mV/A`) : "") +
     (M.coh ? row("V–I coherence", M.coh.toFixed(3)) : "");
   draw();
 }

@@ -1,6 +1,6 @@
 {
  "id": "first-recording",
- "label": "120 A \u00b7 first recording",
+ "label": "Second test, rotation reversed",
  "fs": 333333.0,
  "n": 5685504,
  "chunk": 65536,
@@ -13,7 +13,7 @@
   11.758241758241759
  ],
  "despiked": 2,
- "dvdi": 45.42466830098786,
+ "dvdi": 42.4,
  "coh": 0.5342854236647259,
  "vMean": 11.57800798211235,
  "iMean": 130.98215583139327
